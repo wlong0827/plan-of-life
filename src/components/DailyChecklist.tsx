@@ -20,9 +20,10 @@ const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 interface DailyChecklistProps {
   selectedDate: Date;
+  onChecklistChange?: () => void;
 }
 
-const DailyChecklist = ({ selectedDate }: DailyChecklistProps) => {
+const DailyChecklist = ({ selectedDate, onChecklistChange }: DailyChecklistProps) => {
   const [completions, setCompletions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -72,6 +73,7 @@ const DailyChecklist = ({ selectedDate }: DailyChecklistProps) => {
           next.delete(normName);
           return next;
         });
+        onChecklistChange?.();
       } else {
         const {
           data: { user },
@@ -87,6 +89,7 @@ const DailyChecklist = ({ selectedDate }: DailyChecklistProps) => {
         if (error) throw error;
 
         setCompletions((prev) => new Set(prev).add(normName));
+        onChecklistChange?.();
       }
     } catch (error: any) {
       toast({

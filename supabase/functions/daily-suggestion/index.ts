@@ -52,13 +52,12 @@ serve(async (req) => {
     const weakestNorms = normRates.slice(0, 3).map(n => `${n.name} (${n.rate}%)`).join(", ");
 
     const systemPrompt = `You are a compassionate spiritual advisor helping someone maintain their daily spiritual practices. 
-Based on their completion history, provide ONE practical, encouraging suggestion to help them improve.
-Keep it brief (2-3 sentences), actionable, and focused on building sustainable habits.
-Be warm and understanding, not judgmental.`;
+Provide ONE specific, actionable suggestion in 1-2 sentences (e.g., "Set an alarm for 12pm to pray the Angelus" or "Try this short morning offering: 'O Jesus, through the Immaculate Heart of Mary, I offer You all my prayers, works, joys and sufferings of this day'").
+Be concrete and practical, not general or vague.`;
 
     const userPrompt = `Over the past ${totalDays} days, this person has completed ${overallRate}% of their spiritual norms.
 Their least consistent practices are: ${weakestNorms}.
-Provide a practical, encouraging suggestion to help them improve.`;
+Give one specific actionable tip to improve.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -73,7 +72,7 @@ Provide a practical, encouraging suggestion to help them improve.`;
           { role: "user", content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 150
+        max_tokens: 80
       }),
     });
 

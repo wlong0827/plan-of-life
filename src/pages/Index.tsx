@@ -7,12 +7,14 @@ import { startOfWeek } from "date-fns";
 import DailyChecklist from "@/components/DailyChecklist";
 import WeekSelector from "@/components/WeekSelector";
 import DailySuggestion from "@/components/DailySuggestion";
+import LoadingScreen from "@/components/LoadingScreen";
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,12 +44,12 @@ const Index = () => {
     navigate("/auth");
   };
 
+  const handleChecklistChange = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -65,6 +67,7 @@ const Index = () => {
 
         <div className="space-y-6">
           <WeekSelector
+            key={refreshKey}
             currentWeekStart={currentWeekStart}
             selectedDate={selectedDate}
             onWeekChange={setCurrentWeekStart}
@@ -75,7 +78,7 @@ const Index = () => {
 
           <div>
             <h2 className="text-lg font-semibold mb-4">Today's Norms</h2>
-            <DailyChecklist selectedDate={selectedDate} />
+            <DailyChecklist selectedDate={selectedDate} onChecklistChange={handleChecklistChange} />
           </div>
         </div>
       </div>
