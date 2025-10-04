@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { startOfWeek } from "date-fns";
 import DailyChecklist from "@/components/DailyChecklist";
 import WeekSelector from "@/components/WeekSelector";
@@ -60,9 +60,14 @@ const Index = () => {
             <h1 className="text-3xl font-bold text-primary">Plan of Life</h1>
             <p className="text-sm text-muted-foreground">Track your spiritual practices</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleSignOut}>
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </header>
 
         <div className="space-y-6">

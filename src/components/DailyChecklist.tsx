@@ -2,21 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { format, startOfWeek, addDays } from "date-fns";
+import { format } from "date-fns";
 
-const SPIRITUAL_NORMS = [
-  "Morning Offering",
-  "Morning Prayer",
-  "Holy Mass",
-  "Angelus",
-  "Visit to the Blessed Sacrament",
-  "Holy Rosary",
-  "Spiritual Reading",
-  "Examination of Conscience",
-  "Three Purity Hail Maries",
-];
-
-const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+interface Norm {
+  id: string;
+  norm_name: string;
+  is_active: boolean;
+}
 
 interface DailyChecklistProps {
   selectedDate: Date;
@@ -24,6 +16,7 @@ interface DailyChecklistProps {
 }
 
 const DailyChecklist = ({ selectedDate, onChecklistChange }: DailyChecklistProps) => {
+  const [norms, setNorms] = useState<Norm[]>([]);
   const [completions, setCompletions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -31,24 +24,42 @@ const DailyChecklist = ({ selectedDate, onChecklistChange }: DailyChecklistProps
   const dateKey = format(selectedDate, "yyyy-MM-dd");
 
   useEffect(() => {
-    fetchCompletions();
+    fetchData();
   }, [selectedDate]);
 
-  const fetchCompletions = async () => {
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Fetch user's active norms
+      const { data: normsData, error: normsError } = await supabase
+        .from("user_norms")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
+
+      if (normsError) throw normsError;
+
+      setNorms(normsData || []);
+
+      // Fetch completions for the selected date
+      const { data: completionsData, error: completionsError } = await supabase
         .from("daily_completions")
         .select("norm_name")
         .eq("completed_date", dateKey);
 
-      if (error) throw error;
+      if (completionsError) throw completionsError;
 
-      setCompletions(new Set(data?.map((d) => d.norm_name) || []));
+      setCompletions(new Set(completionsData?.map((d) => d.norm_name) || []));
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to load completions",
+        description: "Failed to load data",
       });
     } finally {
       setLoading(false);
@@ -106,21 +117,21 @@ const DailyChecklist = ({ selectedDate, onChecklistChange }: DailyChecklistProps
 
   return (
     <div className="space-y-4">
-      {SPIRITUAL_NORMS.map((norm) => (
+      {norms.map((norm) => (
         <div
-          key={norm}
+          key={norm.id}
           className="flex items-center space-x-3 p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
         >
           <Checkbox
-            id={norm}
-            checked={completions.has(norm)}
-            onCheckedChange={() => toggleNorm(norm)}
+            id={norm.id}
+            checked={completions.has(norm.norm_name)}
+            onCheckedChange={() => toggleNorm(norm.norm_name)}
           />
           <label
-            htmlFor={norm}
+            htmlFor={norm.id}
             className="flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
           >
-            {norm}
+            {norm.norm_name}
           </label>
         </div>
       ))}
