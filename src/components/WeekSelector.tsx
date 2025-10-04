@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-const TOTAL_NORMS = 9;
 
 interface WeekSelectorProps {
   currentWeekStart: Date;
@@ -22,10 +21,34 @@ const WeekSelector = ({
 }: WeekSelectorProps) => {
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
   const [completionCounts, setCompletionCounts] = useState<Record<string, number>>({});
+  const [totalActiveNorms, setTotalActiveNorms] = useState<number>(9);
 
   useEffect(() => {
+    fetchActiveNormsCount();
     fetchWeekCompletions();
   }, [currentWeekStart]);
+
+  const fetchActiveNormsCount = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count, error } = await supabase
+        .from("user_norms")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      setTotalActiveNorms(count || 1); // Prevent division by zero
+    } catch (error) {
+      console.error("Error fetching active norms count:", error);
+      setTotalActiveNorms(9); // Fallback to default
+    }
+  };
 
   const fetchWeekCompletions = async () => {
     try {
@@ -83,7 +106,9 @@ const WeekSelector = ({
           const isToday = isSameDay(date, new Date());
           const dateKey = format(date, "yyyy-MM-dd");
           const completedCount = completionCounts[dateKey] || 0;
-          const progressPercentage = (completedCount / TOTAL_NORMS) * 100;
+          const progressPercentage = totalActiveNorms > 0 
+            ? (completedCount / totalActiveNorms) * 100 
+            : 0;
 
           return (
             <button
