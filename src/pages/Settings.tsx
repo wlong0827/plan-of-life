@@ -6,13 +6,93 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Norm {
   id: string;
   norm_name: string;
   is_active: boolean;
   is_default: boolean;
+  display_order: number;
+}
+
+interface SortableNormProps {
+  norm: Norm;
+  onToggle: (id: string, currentState: boolean) => void;
+  onDelete: (id: string, isDefault: boolean) => void;
+}
+
+function SortableNorm({ norm, onToggle, onDelete }: SortableNormProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: norm.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-4 rounded-lg border border-border bg-card"
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <button
+          className="cursor-grab active:cursor-grabbing touch-none"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+        </button>
+        <div className="flex-1">
+          <p className="font-medium">{norm.norm_name}</p>
+          {!norm.is_default && (
+            <p className="text-sm text-muted-foreground">Custom</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Switch
+          checked={norm.is_active}
+          onCheckedChange={() => onToggle(norm.id, norm.is_active)}
+        />
+        {!norm.is_default && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(norm.id, norm.is_default)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const DEFAULT_NORMS = [
@@ -34,6 +114,13 @@ const Settings = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   useEffect(() => {
     fetchNorms();
   }, []);
@@ -49,7 +136,7 @@ const Settings = () => {
         .from("user_norms")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: true });
+        .order("display_order", { ascending: true });
 
       if (error) throw error;
 
@@ -73,15 +160,60 @@ const Settings = () => {
   };
 
   const initializeDefaultNorms = async (userId: string) => {
-    const defaultNorms = DEFAULT_NORMS.map((norm) => ({
+    const defaultNorms = DEFAULT_NORMS.map((norm, index) => ({
       user_id: userId,
       norm_name: norm,
       is_default: true,
       is_active: true,
+      display_order: index + 1,
     }));
 
     const { error } = await supabase.from("user_norms").insert(defaultNorms);
     if (error) throw error;
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = norms.findIndex((norm) => norm.id === active.id);
+    const newIndex = norms.findIndex((norm) => norm.id === over.id);
+
+    const newNorms = arrayMove(norms, oldIndex, newIndex);
+
+    // Update display_order for all affected items
+    const updatedNorms = newNorms.map((norm, index) => ({
+      ...norm,
+      display_order: index + 1,
+    }));
+
+    setNorms(updatedNorms);
+
+    // Save to database
+    try {
+      const updates = updatedNorms.map((norm) => ({
+        id: norm.id,
+        display_order: norm.display_order,
+      }));
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from("user_norms")
+          .update({ display_order: update.display_order })
+          .eq("id", update.id);
+
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save order",
+      });
+      // Revert on error
+      fetchNorms();
+    }
   };
 
   const toggleNorm = async (id: string, currentState: boolean) => {
@@ -128,6 +260,9 @@ const Settings = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Get the highest display_order
+      const maxOrder = norms.reduce((max, norm) => Math.max(max, norm.display_order), 0);
+
       const { data, error } = await supabase
         .from("user_norms")
         .insert({
@@ -135,6 +270,7 @@ const Settings = () => {
           norm_name: newNorm.trim(),
           is_default: false,
           is_active: true,
+          display_order: maxOrder + 1,
         })
         .select()
         .single();
@@ -211,37 +347,31 @@ const Settings = () => {
 
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Manage Norms</h2>
+          <p className="text-sm text-muted-foreground">
+            Drag and drop to reorder your norms
+          </p>
           
-          <div className="space-y-3">
-            {norms.map((norm) => (
-              <div
-                key={norm.id}
-                className="flex items-center justify-between p-4 rounded-lg border border-border bg-card"
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{norm.norm_name}</p>
-                  {!norm.is_default && (
-                    <p className="text-sm text-muted-foreground">Custom</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={norm.is_active}
-                    onCheckedChange={() => toggleNorm(norm.id, norm.is_active)}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={norms.map((n) => n.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {norms.map((norm) => (
+                  <SortableNorm
+                    key={norm.id}
+                    norm={norm}
+                    onToggle={toggleNorm}
+                    onDelete={deleteNorm}
                   />
-                  {!norm.is_default && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteNorm(norm.id, norm.is_default)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         <div className="space-y-4">

@@ -40,7 +40,7 @@ const DailyChecklist = ({ selectedDate, onChecklistChange }: DailyChecklistProps
         .select("*")
         .eq("user_id", user.id)
         .eq("is_active", true)
-        .order("created_at", { ascending: true });
+        .order("display_order", { ascending: true });
 
       if (normsError) throw normsError;
 

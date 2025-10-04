@@ -41,6 +41,7 @@ export type Database = {
       user_norms: {
         Row: {
           created_at: string
+          display_order: number
           id: string
           is_active: boolean
           is_default: boolean
@@ -49,6 +50,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          display_order: number
           id?: string
           is_active?: boolean
           is_default?: boolean
@@ -57,6 +59,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          display_order?: number
           id?: string
           is_active?: boolean
           is_default?: boolean
