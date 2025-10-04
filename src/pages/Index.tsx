@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { startOfWeek } from "date-fns";
 import DailyChecklist from "@/components/DailyChecklist";
 import WeekSelector from "@/components/WeekSelector";
+import DailySuggestion from "@/components/DailySuggestion";
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
@@ -54,7 +55,7 @@ const Index = () => {
       <div className="max-w-2xl mx-auto p-4 pb-20">
         <header className="flex items-center justify-between py-6">
           <div>
-            <h1 className="text-2xl font-bold">Daily Spirit Check</h1>
+            <h1 className="text-3xl font-bold text-primary">Plan of Life</h1>
             <p className="text-sm text-muted-foreground">Track your spiritual practices</p>
           </div>
           <Button variant="ghost" size="icon" onClick={handleSignOut}>
@@ -69,6 +70,8 @@ const Index = () => {
             onWeekChange={setCurrentWeekStart}
             onDateSelect={setSelectedDate}
           />
+
+          <DailySuggestion selectedDate={selectedDate} />
 
           <div>
             <h2 className="text-lg font-semibold mb-4">Today's Norms</h2>

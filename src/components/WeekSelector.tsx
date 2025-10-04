@@ -1,8 +1,11 @@
-import { format, startOfWeek, addDays, isSameDay } from "date-fns";
+import { format, addDays, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const TOTAL_NORMS = 9;
 
 interface WeekSelectorProps {
   currentWeekStart: Date;
@@ -18,6 +21,36 @@ const WeekSelector = ({
   onDateSelect,
 }: WeekSelectorProps) => {
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+  const [completionCounts, setCompletionCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetchWeekCompletions();
+  }, [currentWeekStart]);
+
+  const fetchWeekCompletions = async () => {
+    try {
+      const startDate = format(currentWeekStart, "yyyy-MM-dd");
+      const endDate = format(addDays(currentWeekStart, 6), "yyyy-MM-dd");
+
+      const { data, error } = await supabase
+        .from("daily_completions")
+        .select("completed_date, norm_name")
+        .gte("completed_date", startDate)
+        .lte("completed_date", endDate);
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data?.forEach((completion) => {
+        const date = completion.completed_date;
+        counts[date] = (counts[date] || 0) + 1;
+      });
+
+      setCompletionCounts(counts);
+    } catch (error) {
+      console.error("Error fetching week completions:", error);
+    }
+  };
 
   const goToPreviousWeek = () => {
     onWeekChange(addDays(currentWeekStart, -7));
@@ -48,23 +81,30 @@ const WeekSelector = ({
         {weekDates.map((date, index) => {
           const isSelected = isSameDay(date, selectedDate);
           const isToday = isSameDay(date, new Date());
+          const dateKey = format(date, "yyyy-MM-dd");
+          const completedCount = completionCounts[dateKey] || 0;
+          const progressPercentage = (completedCount / TOTAL_NORMS) * 100;
 
           return (
             <button
               key={index}
               onClick={() => onDateSelect(date)}
               className={`
-                flex flex-col items-center justify-center p-3 rounded-lg transition-all
+                relative flex flex-col items-center justify-center p-3 rounded-lg transition-all overflow-hidden bg-secondary
                 ${
                   isSelected
-                    ? "bg-primary text-primary-foreground font-semibold"
-                    : "bg-secondary hover:bg-accent"
+                    ? "ring-2 ring-primary font-semibold"
+                    : "hover:ring-2 hover:ring-accent"
                 }
                 ${isToday && !isSelected ? "ring-2 ring-accent" : ""}
               `}
             >
-              <span className="text-xs mb-1">{DAYS[index]}</span>
-              <span className="text-lg">{format(date, "d")}</span>
+              <div 
+                className="absolute bottom-0 left-0 right-0 bg-primary/30 transition-all duration-300"
+                style={{ height: `${progressPercentage}%` }}
+              />
+              <span className="text-xs mb-1 relative z-10">{DAYS[index]}</span>
+              <span className="text-lg relative z-10">{format(date, "d")}</span>
             </button>
           );
         })}

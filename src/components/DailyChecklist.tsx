@@ -5,15 +5,15 @@ import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, addDays } from "date-fns";
 
 const SPIRITUAL_NORMS = [
-  "Morning offering",
-  "Morning prayer",
-  "Holy mass",
+  "Morning Offering",
+  "Morning Prayer",
+  "Holy Mass",
   "Angelus",
-  "Visit to the blessed sacrament",
-  "Holy rosary",
-  "Spiritual reading",
-  "Examination of conscience",
-  "Three purity hail maries",
+  "Visit to the Blessed Sacrament",
+  "Holy Rosary",
+  "Spiritual Reading",
+  "Examination of Conscience",
+  "Three Purity Hail Maries",
 ];
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
